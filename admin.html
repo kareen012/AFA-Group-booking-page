@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ATS Bookings — Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root{
+    --ink:#1C2126; --steel:#3E6990; --steel-dark:#2B4C6B;
+    --paper:#F7F6F3; --slate:#6B7480; --line:#D8D5CD;
+    --err-bg:#F6E9E5; --err-ink:#A5432A;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:'IBM Plex Sans',sans-serif;}
+  header{border-bottom:2px solid var(--ink);padding:24px;}
+  .eyebrow{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--steel-dark);}
+  h1{font-size:24px;margin:4px 0 0;font-weight:600;}
+  main{max-width:1000px;margin:0 auto;padding:28px 24px 60px;}
+
+  #loginBox{max-width:340px;margin:60px auto;padding:28px;border:1.5px solid var(--ink);background:#fff;}
+  #loginBox h2{margin-top:0;font-size:17px;}
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:13px;font-weight:600;margin-bottom:5px;}
+  .field input{width:100%;padding:10px 11px;border:1.5px solid var(--line);font-size:15px;font-family:inherit;background:var(--paper);}
+  .field input:focus{outline:2px solid var(--steel);outline-offset:1px;border-color:var(--steel);}
+  button.primary{background:var(--ink);color:var(--paper);border:none;padding:11px 20px;font-size:14.5px;font-weight:600;cursor:pointer;width:100%;font-family:inherit;}
+  button.primary:hover{background:var(--steel-dark);}
+  .msg{margin-top:12px;font-size:13.5px;padding:9px 11px;background:var(--err-bg);color:var(--err-ink);display:none;}
+  .msg.show{display:block;}
+
+  #appBox{display:none;}
+  .toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;}
+  .toolbar .count{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--slate);}
+  .toolbar .actions{display:flex;gap:10px;}
+  button.ghost{background:none;border:1.5px solid var(--ink);color:var(--ink);padding:8px 14px;font-size:13.5px;cursor:pointer;font-family:inherit;}
+  button.ghost:hover{background:var(--ink);color:var(--paper);}
+
+  table{border-collapse:collapse;width:100%;background:#fff;}
+  th,td{border-bottom:1px solid var(--line);padding:9px 10px;text-align:left;font-size:13.5px;}
+  th{background:var(--ink);color:var(--paper);font-weight:600;font-size:12.5px;position:sticky;top:0;}
+  td.date{font-family:'IBM Plex Mono',monospace;white-space:nowrap;}
+  td.slot{font-family:'IBM Plex Mono',monospace;white-space:nowrap;}
+  tr:hover td{background:#F1F0EC;}
+  .cancel-link{color:var(--err-ink);text-decoration:underline;cursor:pointer;font-size:13px;background:none;border:none;font-family:inherit;padding:0;}
+  .invitebox{border:1.5px solid var(--ink);background:#fff;padding:20px;margin-bottom:26px;}
+  .invitebox h2{margin:0 0 4px;font-size:17px;}
+  .invitebox .hint{margin:0 0 14px;font-size:13px;color:var(--slate);}
+  .inv-form{display:flex;gap:10px;flex-wrap:wrap;}
+  .inv-form input{flex:1 1 180px;padding:9px 10px;border:1.5px solid var(--line);font-size:14px;font-family:inherit;background:var(--paper);}
+  .inv-form input:focus{outline:2px solid var(--steel);outline-offset:1px;border-color:var(--steel);}
+  .linkcell{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--steel-dark);word-break:break-all;max-width:330px;}
+  .copybtn{background:none;border:1px solid var(--line);padding:3px 8px;font-size:11.5px;cursor:pointer;font-family:inherit;margin-left:6px;white-space:nowrap;}
+  .copybtn:hover{background:var(--paper);}
+  .pill{font-size:11.5px;font-family:'IBM Plex Mono',monospace;padding:2px 7px;white-space:nowrap;}
+  .pill.booked{background:var(--ok-bg);color:var(--ok-ink);}
+  .pill.pending{background:#EFEEEA;color:var(--slate);}
+  td.attendees{min-width:230px;}
+  .att{font-size:12.5px;line-height:1.45;}
+  .attn{font-family:'IBM Plex Mono',monospace;color:var(--slate);font-size:11px;}
+  .attd{color:var(--slate);}
+  .noatt{color:var(--slate);}
+  .empty{color:var(--slate);padding:30px 0;text-align:center;font-size:14px;}
+  .scrollwrap{overflow-x:auto;border:1.5px solid var(--ink);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">AFA TECHNOLOGIES</div>
+  <h1>ATS Bookings — Admin</h1>
+</header>
+
+<main>
+  <div id="loginBox">
+    <h2>Staff sign in</h2>
+    <div class="field">
+      <label for="loginEmail">Email</label>
+      <input id="loginEmail" type="email" autocomplete="username">
+    </div>
+    <div class="field">
+      <label for="loginPass">Password</label>
+      <input id="loginPass" type="password" autocomplete="current-password">
+    </div>
+    <button class="primary" id="loginBtn">Sign in</button>
+    <div class="msg" id="loginMsg"></div>
+  </div>
+
+  <div id="appBox">
+    <div class="invitebox">
+      <h2>Invitations</h2>
+      <p class="hint">Create a personal link for each customer. Only people holding a link can book, and each link lets that customer change or cancel their own booking.</p>
+      <div class="inv-form">
+        <input id="invName" type="text" placeholder="Contact name *">
+        <input id="invCompany" type="text" placeholder="Company *">
+        <input id="invEmail" type="email" placeholder="Email (optional)">
+        <button class="ghost" id="invCreate">Create link</button>
+      </div>
+      <div class="msg" id="invMsg"></div>
+      <div class="scrollwrap" style="margin-top:14px;">
+        <table id="invTable">
+          <thead><tr><th>Contact</th><th>Company</th><th>Email</th><th>Booking link</th><th>Status</th><th></th></tr></thead>
+          <tbody id="invBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <div class="count" id="rowCount">Loading…</div>
+      <div class="actions">
+        <button class="ghost" id="exportBtn">Export CSV</button>
+        <button class="ghost" id="signOutBtn">Sign out</button>
+      </div>
+    </div>
+    <div class="scrollwrap">
+      <table id="bookingsTable">
+        <thead>
+          <tr>
+            <th>Date</th><th>Time</th><th>Booked by</th><th>Company</th>
+            <th>Email</th><th>Phone</th><th>Pax</th><th>Attendees</th><th>Booked at</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="bookingsBody"></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<script>
+// ============================================================
+// CONFIG — same project as index.html
+// ============================================================
+const CONFIG = {
+  supabaseUrl: 'https://humcrbfsdanmkwndaqzm.supabase.co',
+  supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh1bWNyYmZzZGFubWt3bmRhcXptIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAwNTEyOTIsImV4cCI6MjEwNTYyNzI5Mn0.Ri-AAy9TL0D6gxbD2U0LvhhmHMxRUO2qB-ZEN4x2I4w',
+};
+// ============================================================
+
+const sb = window.supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseAnonKey);
+
+const loginBox = document.getElementById('loginBox');
+const appBox = document.getElementById('appBox');
+const loginMsg = document.getElementById('loginMsg');
+
+async function checkSession() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) {
+    showApp();
+  }
+}
+
+document.getElementById('loginBtn').addEventListener('click', async () => {
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPass').value;
+  loginMsg.classList.remove('show');
+
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) {
+    loginMsg.textContent = error.message;
+    loginMsg.classList.add('show');
+    return;
+  }
+  showApp();
+});
+
+document.getElementById('signOutBtn').addEventListener('click', async () => {
+  await sb.auth.signOut();
+  appBox.style.display = 'none';
+  loginBox.style.display = 'block';
+});
+
+function showApp() {
+  loginBox.style.display = 'none';
+  appBox.style.display = 'block';
+  loadBookings().then(loadInvites);
+}
+
+let currentRows = [];
+
+async function loadBookings() {
+  const { data, error } = await sb
+    .from('ats_bookings')
+    .select('*')
+    .order('booking_date', { ascending: true })
+    .order('time_slot', { ascending: true });
+
+  if (error) {
+    document.getElementById('rowCount').textContent = 'Error loading bookings: ' + error.message;
+    return;
+  }
+  currentRows = data;
+  renderRows();
+}
+
+function renderRows() {
+  const body = document.getElementById('bookingsBody');
+  document.getElementById('rowCount').textContent = currentRows.length + ' booking' + (currentRows.length === 1 ? '' : 's');
+
+  if (currentRows.length === 0) {
+    body.innerHTML = '<tr><td colspan="9" class="empty">No bookings yet.</td></tr>';
+    return;
+  }
+
+  body.innerHTML = currentRows.map(r => `
+    <tr data-id="${r.id}">
+      <td class="date">${r.booking_date}</td>
+      <td class="slot">${r.time_slot}</td>
+      <td>${escapeHtml(r.customer_name)}</td>
+      <td>${escapeHtml(r.company)}</td>
+      <td>${escapeHtml(r.email || '—')}</td>
+      <td>${escapeHtml(r.phone || '—')}</td>
+      <td>${r.pax}</td>
+      <td class="attendees">${renderAttendees(r.visitors)}</td>
+      <td>${new Date(r.created_at).toLocaleString()}</td>
+      <td><button class="cancel-link" data-id="${r.id}">Cancel</button></td>
+    </tr>
+  `).join('');
+
+  body.querySelectorAll('.cancel-link').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Cancel this booking and free the slot?')) return;
+      const id = btn.dataset.id;
+      const { error } = await sb.from('ats_bookings').delete().eq('id', id);
+      if (error) { alert('Failed to cancel: ' + error.message); return; }
+      currentRows = currentRows.filter(r => r.id !== id);
+      renderRows();
+    });
+  });
+}
+
+function renderAttendees(visitors) {
+  if (!Array.isArray(visitors) || visitors.length === 0) return '<span class="noatt">—</span>';
+  return visitors.map((v, i) =>
+    `<div class="att"><span class="attn">${i + 1}.</span> ${escapeHtml(v.name || '')}` +
+    (v.designation ? ` <span class="attd">— ${escapeHtml(v.designation)}</span>` : '') +
+    `</div>`
+  ).join('');
+}
+
+// ---------- invitations ----------
+// Booking page lives next to this file, so build links relative to it.
+const BOOKING_BASE = location.href.replace(/[^/]*$/, '') + 'index.html';
+let invites = [];
+
+async function loadInvites() {
+  const { data, error } = await sb
+    .from('ats_invites')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) { console.error('invites', error); return; }
+  invites = data;
+  renderInvites();
+}
+
+function inviteLink(token) { return BOOKING_BASE + '?t=' + token; }
+
+function renderInvites() {
+  const body = document.getElementById('invBody');
+  if (invites.length === 0) {
+    body.innerHTML = '<tr><td colspan="6" class="empty">No invitations yet.</td></tr>';
+    return;
+  }
+  const bookedTokens = new Set(currentRows.filter(r => r.invite_token).map(r => r.invite_token));
+  body.innerHTML = invites.map(v => `
+    <tr>
+      <td>${escapeHtml(v.contact_name)}</td>
+      <td>${escapeHtml(v.company)}</td>
+      <td>${escapeHtml(v.email || '—')}</td>
+      <td class="linkcell">${escapeHtml(inviteLink(v.token))}<button class="copybtn" data-copy="${escapeHtml(inviteLink(v.token))}">Copy</button></td>
+      <td>${bookedTokens.has(v.token)
+            ? '<span class="pill booked">Booked</span>'
+            : '<span class="pill pending">Not booked</span>'}</td>
+      <td><button class="cancel-link" data-revoke="${v.token}">Revoke</button></td>
+    </tr>
+  `).join('');
+
+  body.querySelectorAll('.copybtn').forEach(b => {
+    b.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(b.dataset.copy);
+        const t = b.textContent; b.textContent = 'Copied'; setTimeout(() => b.textContent = t, 1200);
+      } catch { alert(b.dataset.copy); }
+    });
+  });
+
+  body.querySelectorAll('[data-revoke]').forEach(b => {
+    b.addEventListener('click', async () => {
+      if (!confirm('Revoke this invitation? Their link stops working, and any booking they made is cancelled and released.')) return;
+      const { error } = await sb.from('ats_invites').delete().eq('token', b.dataset.revoke);
+      if (error) { alert('Could not revoke: ' + error.message); return; }
+      await loadBookings();
+      await loadInvites();
+    });
+  });
+}
+
+document.getElementById('invCreate').addEventListener('click', async () => {
+  const contact_name = document.getElementById('invName').value.trim();
+  const company = document.getElementById('invCompany').value.trim();
+  const email = document.getElementById('invEmail').value.trim();
+  const msg = document.getElementById('invMsg');
+
+  if (!contact_name || !company) {
+    msg.textContent = 'Contact name and company are required.';
+    msg.className = 'msg show'; return;
+  }
+  const { error } = await sb.from('ats_invites')
+    .insert({ contact_name, company, email: email || null });
+  if (error) { msg.textContent = 'Could not create: ' + error.message; msg.className = 'msg show'; return; }
+
+  document.getElementById('invName').value = '';
+  document.getElementById('invCompany').value = '';
+  document.getElementById('invEmail').value = '';
+  msg.className = 'msg';
+  await loadInvites();
+});
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+document.getElementById('exportBtn').addEventListener('click', () => {
+  // One row per attendee, so this doubles as a reception sign-in sheet.
+  const headers = ['Date','Time','Visitor name','Designation','Company','Booked by','Email','Phone','Pax','Booked at'];
+  const lines = [headers.join(',')];
+  currentRows.forEach(r => {
+    const vs = Array.isArray(r.visitors) && r.visitors.length
+      ? r.visitors
+      : [{ name: '', designation: '' }];
+    vs.forEach(v => {
+      const row = [r.booking_date, r.time_slot, v.name||'', v.designation||'', r.company,
+                   r.customer_name, r.email||'', r.phone||'', r.pax, r.created_at]
+        .map(x => `"${String(x).replace(/"/g,'""')}"`);
+      lines.push(row.join(','));
+    });
+  });
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'ats-bookings.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+checkSession();
+</script>
+</body>
+</html>
