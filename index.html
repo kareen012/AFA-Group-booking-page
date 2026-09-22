@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Book Your Visit — AFA Technology Showcase</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root{
+    --ink:#1C2126; --steel:#3E6990; --steel-dark:#2B4C6B;
+    --amber:#E8A33D; --paper:#F7F6F3; --slate:#6B7480; --line:#D8D5CD;
+    --ok-bg:#EAF1E9; --ok-ink:#3A6B3E;
+    --err-bg:#F6E9E5; --err-ink:#A5432A;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--paper);color:var(--ink);font-family:'IBM Plex Sans',sans-serif;line-height:1.5;padding:0 0 80px;}
+  header{border-bottom:2px solid var(--ink);padding:32px 24px 24px;max-width:1180px;margin:0 auto;}
+  .eyebrow{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--steel-dark);letter-spacing:0.02em;}
+  h1{font-size:clamp(28px,4vw,40px);margin:6px 0 10px;font-weight:600;letter-spacing:-0.01em;}
+  .sub{color:var(--slate);font-size:15.5px;max-width:60ch;}
+  main{max-width:1180px;margin:0 auto;padding:32px 24px 0;}
+
+  /* invitation gate */
+  .gate{
+    max-width:560px;margin:60px auto;padding:30px;
+    border:1.5px solid var(--ink);background:#fff;text-align:center;
+  }
+  .gate h2{margin:0 0 10px;font-size:19px;}
+  .gate p{color:var(--slate);font-size:14.5px;margin:0;}
+
+  .whois{
+    background:#fff;border:1.5px solid var(--ink);
+    padding:16px 20px;margin-bottom:22px;
+    display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;
+  }
+  .whois .who-name{font-size:16px;font-weight:600;}
+  .whois .who-co{font-size:13.5px;color:var(--slate);}
+  .whois .who-bk{
+    font-family:'IBM Plex Mono',monospace;font-size:13px;
+    color:var(--steel-dark);text-align:right;
+  }
+  .whois .who-bk b{display:block;font-size:11px;color:var(--slate);font-weight:500;letter-spacing:0.04em;}
+
+  .legend{display:flex;gap:20px;flex-wrap:wrap;font-size:13px;color:var(--slate);margin-bottom:20px;}
+  .legend span{display:inline-flex;align-items:center;gap:6px;}
+  .swatch{width:12px;height:12px;border:1.5px solid var(--ink);flex-shrink:0;}
+  .swatch.open{background:var(--paper);}
+  .swatch.taken{background:#D8D5CD;border-color:#D8D5CD;}
+  .swatch.sel{background:var(--steel);border-color:var(--steel);}
+  .swatch.mine{background:var(--amber);border-color:var(--amber);}
+
+  .grid-scroll{overflow-x:auto;border:1.5px solid var(--ink);}
+  table.schedule{border-collapse:collapse;width:100%;min-width:480px;table-layout:fixed;}
+  table.schedule th, table.schedule td{border-bottom:1px solid var(--line);border-right:1px solid var(--line);padding:0;text-align:center;}
+  table.schedule th:last-child, table.schedule td:last-child{border-right:none;}
+  table.schedule tr:last-child td{border-bottom:none;}
+  th.corner{background:var(--ink);width:132px;}
+  th.timehead{background:var(--ink);color:var(--paper);padding:9px 4px;font-family:'IBM Plex Mono',monospace;font-weight:500;}
+  th.timehead .t-start{display:block;font-size:12.5px;letter-spacing:-0.01em;}
+  th.timehead .t-end{display:block;font-size:10.5px;color:#9FB0BF;letter-spacing:-0.01em;}
+  td.datelabel{background:var(--ink);color:var(--paper);padding:10px;text-align:left;white-space:nowrap;}
+  td.datelabel .dow{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#9FB0BF;display:block;letter-spacing:0.04em;}
+  td.datelabel .date{font-size:14.5px;font-weight:600;}
+
+  td.slot{height:54px;cursor:pointer;position:relative;transition:background 0.12s ease;}
+  td.slot .tag{font-size:11.5px;font-family:'IBM Plex Mono',monospace;color:var(--slate);}
+  td.slot.open:hover{background:#EFF3F6;}
+  td.slot.open:hover .tag{color:var(--steel-dark);}
+  td.slot.taken{background:#EDEBE6;cursor:default;}
+  td.slot.taken .tag{color:#A6A29A;}
+  td.slot.past{background:#F1F0EC;cursor:not-allowed;}
+  td.slot.past .tag{color:#C9C6BE;}
+  td.slot.selected{background:var(--steel);}
+  td.slot.selected .tag{color:#fff;}
+  td.slot.mine{background:var(--amber);}
+  td.slot.mine .tag{color:#3A2A08;font-weight:600;}
+
+  .panel{margin-top:24px;border:1.5px solid var(--ink);padding:24px;display:none;background:#fff;}
+  .panel.show{display:block;}
+  .panel h2{font-size:18px;margin:0 0 4px;}
+  .panel .picked{font-family:'IBM Plex Mono',monospace;font-size:13.5px;color:var(--steel-dark);margin-bottom:18px;}
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:13px;font-weight:600;margin-bottom:5px;}
+  .field input{width:100%;padding:10px 11px;border:1.5px solid var(--line);font-size:15px;font-family:inherit;background:var(--paper);}
+  .field input:focus{outline:2px solid var(--steel);outline-offset:1px;border-color:var(--steel);}
+  .field input[readonly]{background:#EFEEEA;color:var(--slate);}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  @media (max-width:520px){.row2{grid-template-columns:1fr;}}
+
+  .visitors-block{margin-top:18px;border-top:1px solid var(--line);padding-top:16px;}
+  .visitors-block .vb-head{font-size:13px;font-weight:600;margin-bottom:4px;}
+  .visitors-block .vb-note{font-size:12.5px;color:var(--slate);margin-bottom:12px;}
+  .vrow{display:grid;grid-template-columns:28px 1fr 1fr;gap:10px;align-items:center;margin-bottom:9px;}
+  .vrow .vnum{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--slate);text-align:right;}
+  .vrow input{width:100%;padding:9px 10px;border:1.5px solid var(--line);font-size:14.5px;font-family:inherit;background:var(--paper);}
+  .vrow input:focus{outline:2px solid var(--steel);outline-offset:1px;border-color:var(--steel);}
+  .vrow input.missing{border-color:var(--err-ink);background:#FCF4F2;}
+  @media (max-width:560px){
+    .vrow{grid-template-columns:22px 1fr;}
+    .vrow input:last-child{grid-column:2;}
+  }
+
+  .actions{display:flex;gap:10px;margin-top:20px;align-items:center;flex-wrap:wrap;}
+  button.primary{background:var(--ink);color:var(--paper);border:none;padding:12px 22px;font-size:14.5px;font-weight:600;cursor:pointer;font-family:inherit;}
+  button.primary:disabled{background:#9AA0A6;cursor:wait;}
+  button.primary:hover:not(:disabled){background:var(--steel-dark);}
+  button.ghost{background:none;border:none;color:var(--slate);font-size:14px;cursor:pointer;text-decoration:underline;font-family:inherit;}
+  button.danger{background:none;border:none;color:var(--err-ink);font-size:14px;cursor:pointer;text-decoration:underline;font-family:inherit;margin-left:auto;}
+  .msg{margin-top:14px;padding:10px 12px;font-size:13.5px;display:none;}
+  .msg.show{display:block;}
+  .msg.ok{background:var(--ok-bg);color:var(--ok-ink);}
+  .msg.err{background:var(--err-bg);color:var(--err-ink);}
+  footer{max-width:1180px;margin:40px auto 0;padding:0 24px;font-size:12.5px;color:var(--slate);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">AFA TECHNOLOGIES</div>
+  <h1 id="eventTitle">Book Your Visit</h1>
+  <div class="sub" id="subLine">Pick an open slot below to reserve your visit. You can come back to this same link any time to change or cancel your booking.</div>
+</header>
+
+<main>
+  <div class="gate" id="gate" style="display:none;">
+    <h2 id="gateTitle">Invitation required</h2>
+    <p id="gateText">This booking page is open to invited guests only. Please use the personal link sent to you by AFA Technologies. If you've lost it, contact your AFA representative.</p>
+  </div>
+
+  <div id="app" style="display:none;">
+    <div class="whois">
+      <div>
+        <div class="who-name" id="whoName"></div>
+        <div class="who-co" id="whoCo"></div>
+      </div>
+      <div class="who-bk" id="whoBooking"></div>
+    </div>
+
+    <div class="legend">
+      <span><span class="swatch open"></span> Open</span>
+      <span><span class="swatch sel"></span> Your selection</span>
+      <span><span class="swatch mine"></span> Your booking</span>
+      <span><span class="swatch taken"></span> Reserved</span>
+    </div>
+
+    <div class="grid-scroll">
+      <table class="schedule" id="scheduleTable"></table>
+    </div>
+
+    <div class="panel" id="panel">
+      <h2 id="panelTitle">Confirm your visit</h2>
+      <div class="picked" id="pickedLabel"></div>
+      <div class="row2">
+        <div class="field">
+          <label for="fName">Booking contact</label>
+          <input id="fName" type="text" readonly>
+        </div>
+        <div class="field">
+          <label for="fCompany">Company</label>
+          <input id="fCompany" type="text" readonly>
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label for="fPhone">Contact phone</label>
+          <input id="fPhone" type="tel" autocomplete="tel">
+        </div>
+        <div class="field" style="max-width:180px;">
+          <label for="fPax">Number of visitors *</label>
+          <input id="fPax" type="number" min="1" max="20" value="1">
+        </div>
+      </div>
+
+      <div class="visitors-block">
+        <div class="vb-head">Visitor details *</div>
+        <div class="vb-note">Please provide the full name and designation of every person attending. All fields are required.</div>
+        <div id="visitorFields"></div>
+      </div>
+
+      <div class="actions">
+        <button class="primary" id="confirmBtn">Confirm booking</button>
+        <button class="ghost" id="cancelBtn">Choose a different slot</button>
+        <button class="danger" id="deleteBtn" style="display:none;">Cancel my booking</button>
+      </div>
+      <div class="msg" id="formMsg"></div>
+    </div>
+  </div>
+
+  <footer>Your visit details are private. Other guests can see which slots are taken, but never who booked them.</footer>
+</main>
+
+<script>
+// ============================================================
+// CONFIG
+// ============================================================
+const CONFIG = {
+  supabaseUrl: 'https://humcrbfsdanmkwndaqzm.supabase.co',
+  supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh1bWNyYmZzZGFubWt3bmRhcXptIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAwNTEyOTIsImV4cCI6MjEwNTYyNzI5Mn0.Ri-AAy9TL0D6gxbD2U0LvhhmHMxRUO2qB-ZEN4x2I4w',
+  eventName: 'AFA Technology Showcase',
+  startDate: '2026-10-21',
+  endDate: '2026-10-31',
+  excludeWeekends: true,
+
+  // --- Session times ---
+  dayStart: '10:00',
+  dayEnd:   '16:00',
+  slotMinutes: 120,
+  skipStartTimes: ['12:00'],   // removes the 12pm-2pm block
+};
+// ============================================================
+
+function buildTimeSlots() {
+  const toMins = (hhmm) => { const [h, m] = hhmm.split(':').map(Number); return h * 60 + m; };
+  const to12h = (mins) => {
+    let h = Math.floor(mins / 60); const m = mins % 60;
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    let h12 = h % 12; if (h12 === 0) h12 = 12;
+    return String(h12).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ' ' + ampm;
+  };
+  const skip = new Set((CONFIG.skipStartTimes || []).map(toMins));
+  const slots = []; const end = toMins(CONFIG.dayEnd);
+  for (let t = toMins(CONFIG.dayStart); t + CONFIG.slotMinutes <= end; t += CONFIG.slotMinutes) {
+    if (skip.has(t)) continue;
+    slots.push(to12h(t) + ' – ' + to12h(t + CONFIG.slotMinutes));
+  }
+  return slots;
+}
+CONFIG.timeSlots = buildTimeSlots();
+document.getElementById('eventTitle').textContent = 'Book Your Visit — ' + CONFIG.eventName;
+
+// Never reuse a staff session on this page — always act as an anonymous guest.
+const sb = window.supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseAnonKey, {
+  auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+});
+
+const TOKEN = new URLSearchParams(location.search).get('t');
+
+function fmtISO(d) {
+  // Local date parts — toISOString() would shift the day for UTC+8.
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+const fmtDow = d => d.toLocaleDateString('en-US', { weekday: 'short' });
+const fmtDayMonth = d => d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+
+function dateRange() {
+  const dates = [];
+  let d = new Date(CONFIG.startDate + 'T00:00:00');
+  const end = new Date(CONFIG.endDate + 'T00:00:00');
+  while (d <= end) {
+    const dow = d.getDay();
+    if (!(CONFIG.excludeWeekends && (dow === 0 || dow === 6))) dates.push(new Date(d));
+    d.setDate(d.getDate() + 1);
+  }
+  return dates;
+}
+const DATES = dateRange();
+
+let taken = new Set();     // "date|slot" booked by anyone
+let invite = null;         // { contact_name, company, email, booking }
+let myBooking = null;      // { booking_date, time_slot, phone, pax, visitors }
+let selected = null;
+
+function isPast(d) { const t = new Date(); t.setHours(0,0,0,0); return d < t; }
+
+function showGate(title, text) {
+  document.getElementById('gateTitle').textContent = title;
+  document.getElementById('gateText').textContent = text;
+  document.getElementById('gate').style.display = 'block';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('subLine').style.display = 'none';
+}
+
+// ---------- attendee fields ----------
+function readVisitorFields() {
+  return Array.from(document.querySelectorAll('#visitorFields .vrow')).map(row => ({
+    name: row.querySelector('.v-name').value.trim(),
+    designation: row.querySelector('.v-desig').value.trim(),
+  }));
+}
+function renderVisitorFields(preset) {
+  const wrap = document.getElementById('visitorFields');
+  let n = parseInt(document.getElementById('fPax').value, 10);
+  if (isNaN(n) || n < 1) n = 1;
+  if (n > 20) { n = 20; document.getElementById('fPax').value = 20; }
+  const existing = preset || readVisitorFields();
+  let html = '';
+  for (let i = 0; i < n; i++) {
+    const p = existing[i] || { name: '', designation: '' };
+    html += `<div class="vrow">
+      <span class="vnum">${i + 1}.</span>
+      <input class="v-name" type="text" placeholder="Full name" value="${(p.name||'').replace(/"/g,'&quot;')}">
+      <input class="v-desig" type="text" placeholder="Designation" value="${(p.designation||'').replace(/"/g,'&quot;')}">
+    </div>`;
+  }
+  wrap.innerHTML = html;
+}
+document.getElementById('fPax').addEventListener('input', () => renderVisitorFields());
+
+// ---------- grid ----------
+function renderTable() {
+  const table = document.getElementById('scheduleTable');
+  let html = '<thead><tr><th class="corner"></th>';
+  CONFIG.timeSlots.forEach(slot => {
+    const p = slot.split(' – ');
+    html += `<th class="timehead"><span class="t-start">${p[0]}</span><span class="t-end">to ${p[1]||''}</span></th>`;
+  });
+  html += '</tr></thead><tbody>';
+
+  DATES.forEach(d => {
+    const iso = fmtISO(d);
+    const past = isPast(d);
+    html += `<tr><td class="datelabel"><span class="dow">${fmtDow(d)}</span><span class="date">${fmtDayMonth(d)}</span></td>`;
+    CONFIG.timeSlots.forEach(slot => {
+      const key = iso + '|' + slot;
+      const isMine = myBooking && myBooking.booking_date === iso && myBooking.time_slot === slot;
+      const isTaken = taken.has(key) && !isMine;
+      const isSel = selected && selected.date === iso && selected.slot === slot;
+      let cls = 'slot', label = 'Open';
+      if (past)        { cls += ' past';     label = '—'; }
+      else if (isMine && !isSel) { cls += ' mine'; label = 'Your booking'; }
+      else if (isTaken){ cls += ' taken';    label = 'Reserved'; }
+      else if (isSel)  { cls += ' selected'; label = 'Selected'; }
+      else             { cls += ' open'; }
+      html += `<td class="${cls}" data-date="${iso}" data-slot="${slot}" data-past="${past}" data-taken="${isTaken}"><span class="tag">${label}</span></td>`;
+    });
+    html += '</tr>';
+  });
+  table.innerHTML = html + '</tbody>';
+
+  table.querySelectorAll('td.slot').forEach(cell => {
+    cell.addEventListener('click', () => {
+      if (cell.dataset.past === 'true' || cell.dataset.taken === 'true') return;
+      selected = { date: cell.dataset.date, slot: cell.dataset.slot };
+      renderTable();
+      openPanel();
+    });
+  });
+}
+
+async function loadAvailability() {
+  const { data, error } = await sb
+    .from('ats_bookings')
+    .select('booking_date,time_slot')
+    .gte('booking_date', CONFIG.startDate)
+    .lte('booking_date', CONFIG.endDate);
+  if (error) { console.error('availability', error); return; }
+  taken = new Set(data.map(r => r.booking_date + '|' + r.time_slot));
+}
+
+function describeBooking(b) {
+  if (!b) return '<b>NO BOOKING YET</b>Pick a slot below';
+  const d = new Date(b.booking_date + 'T00:00:00');
+  return `<b>YOUR BOOKING</b>${fmtDow(d)}, ${fmtDayMonth(d)} · ${b.time_slot}`;
+}
+
+function refreshWhois() {
+  document.getElementById('whoName').textContent = invite.contact_name || 'Welcome';
+  document.getElementById('whoCo').textContent = invite.company || 'Please enter your details below when booking';
+  document.getElementById('whoBooking').innerHTML = describeBooking(myBooking);
+}
+
+function openPanel() {
+  const d = new Date(selected.date + 'T00:00:00');
+  const amending = !!myBooking;
+  document.getElementById('panelTitle').textContent = amending ? 'Update your visit' : 'Confirm your visit';
+  document.getElementById('confirmBtn').textContent = amending ? 'Update booking' : 'Confirm booking';
+  document.getElementById('deleteBtn').style.display = amending ? 'inline' : 'none';
+  document.getElementById('pickedLabel').textContent = `${fmtDow(d)}, ${fmtDayMonth(d)} — ${selected.slot}`;
+  document.getElementById('formMsg').className = 'msg';
+  document.getElementById('panel').classList.add('show');
+  document.getElementById('panel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+document.getElementById('cancelBtn').addEventListener('click', () => {
+  selected = null;
+  document.getElementById('panel').classList.remove('show');
+  renderTable();
+});
+
+// ---------- book / amend ----------
+document.getElementById('confirmBtn').addEventListener('click', async () => {
+  const msgEl = document.getElementById('formMsg');
+  const phone = document.getElementById('fPhone').value.trim();
+  const visitors = readVisitorFields();
+
+  // Only editable when the invitation was created blank
+  const nameEl = document.getElementById('fName');
+  const coEl = document.getElementById('fCompany');
+  if (!nameEl.readOnly && (!nameEl.value.trim() || !coEl.value.trim())) {
+    msgEl.textContent = 'Please enter your name and company.';
+    msgEl.className = 'msg show err';
+    (!nameEl.value.trim() ? nameEl : coEl).focus();
+    return;
+  }
+
+  let missing = 0;
+  document.querySelectorAll('#visitorFields .vrow').forEach((row, i) => {
+    const nEl = row.querySelector('.v-name'), dEl = row.querySelector('.v-desig');
+    nEl.classList.toggle('missing', !visitors[i].name);
+    dEl.classList.toggle('missing', !visitors[i].designation);
+    if (!visitors[i].name || !visitors[i].designation) missing++;
+  });
+  if (missing > 0) {
+    msgEl.textContent = `Please fill in the name and designation for all ${visitors.length} visitor${visitors.length===1?'':'s'}.`;
+    msgEl.className = 'msg show err';
+    document.querySelector('#visitorFields .missing')?.focus();
+    return;
+  }
+
+  const btn = document.getElementById('confirmBtn');
+  const original = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Saving…';
+
+  const { error } = await sb.rpc('ats_book', {
+    p_token: TOKEN,
+    p_date: selected.date,
+    p_slot: selected.slot,
+    p_contact_name: document.getElementById('fName').value.trim(),
+    p_company: document.getElementById('fCompany').value.trim(),
+    p_phone: phone || null,
+    p_visitors: visitors,
+  });
+
+  btn.disabled = false; btn.textContent = original;
+
+  if (error) {
+    const m = error.message || '';
+    if (m.includes('SLOT_TAKEN'))        msgEl.textContent = 'That slot was just taken by another guest — please choose a different one.';
+    else if (m.includes('INVALID_INVITE')) msgEl.textContent = 'This invitation link is no longer valid. Please contact your AFA representative.';
+    else if (m.includes('NEED_DETAILS'))   msgEl.textContent = 'Please enter your name and company.';
+    else if (m.includes('NO_VISITORS'))  msgEl.textContent = 'Please add at least one visitor.';
+    else                                 msgEl.textContent = 'Something went wrong: ' + m;
+    msgEl.className = 'msg show err';
+    await reloadState();
+    return;
+  }
+
+  msgEl.textContent = myBooking
+    ? 'Your booking has been updated. You can change it again from this link any time.'
+    : 'Booked — we look forward to your visit. Keep this link to change or cancel later.';
+  msgEl.className = 'msg show ok';
+  selected = null;
+  await reloadState();
+  setTimeout(() => document.getElementById('panel').classList.remove('show'), 2400);
+});
+
+document.getElementById('deleteBtn').addEventListener('click', async () => {
+  if (!confirm('Cancel your booking? The slot will be released for other guests.')) return;
+  const msgEl = document.getElementById('formMsg');
+  const { error } = await sb.rpc('ats_cancel', { p_token: TOKEN });
+  if (error) {
+    msgEl.textContent = 'Could not cancel: ' + error.message;
+    msgEl.className = 'msg show err';
+    return;
+  }
+  selected = null;
+  await reloadState();
+  document.getElementById('panel').classList.remove('show');
+});
+
+// ---------- startup ----------
+async function reloadState() {
+  const { data, error } = await sb.rpc('ats_get_invite', { p_token: TOKEN });
+  if (error) { console.error('invite', error); return; }
+  invite = data;
+  myBooking = data ? data.booking : null;
+  await loadAvailability();
+  refreshWhois();
+  renderTable();
+
+  const nameEl = document.getElementById('fName');
+  const coEl = document.getElementById('fCompany');
+
+  nameEl.value = invite.contact_name || '';
+  coEl.value = invite.company || '';
+  nameEl.readOnly = !!invite.contact_name;
+  coEl.readOnly = !!invite.company;
+  document.querySelector('label[for="fName"]').textContent =
+    invite.contact_name ? 'Booking contact' : 'Your name *';
+  document.querySelector('label[for="fCompany"]').textContent =
+    invite.company ? 'Company' : 'Your company *';
+
+  if (myBooking) {
+    document.getElementById('fPhone').value = myBooking.phone || '';
+    const vs = Array.isArray(myBooking.visitors) ? myBooking.visitors : [];
+    document.getElementById('fPax').value = Math.max(1, vs.length || myBooking.pax || 1);
+    renderVisitorFields(vs);
+  } else {
+    renderVisitorFields([]);
+  }
+}
+
+async function start() {
+  if (!TOKEN) {
+    showGate('Invitation required',
+      "This booking page is open to invited guests only. Please use the personal link sent to you by AFA Technologies. If you've lost it, contact your AFA representative.");
+    return;
+  }
+  const { data, error } = await sb.rpc('ats_get_invite', { p_token: TOKEN });
+  if (error) {
+    showGate('Unable to load', 'We could not verify your invitation just now. Please refresh the page, or contact your AFA representative.');
+    return;
+  }
+  if (!data) {
+    showGate('Invitation not recognised',
+      'This link is not valid. It may have been mistyped, or the invitation may have been withdrawn. Please contact your AFA representative.');
+    return;
+  }
+  document.getElementById('app').style.display = 'block';
+  await reloadState();
+}
+
+start();
+</script>
+</body>
+</html>
